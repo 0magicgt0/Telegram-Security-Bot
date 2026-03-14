@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SecurityBot Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --border: #1f2937;
+      --accent: #2563eb;
+      --accent2: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 16px 32px;
+    }
+    .card {
+      background: rgba(17,24,39,.98);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.28);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+    .label { display:block; font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: #0b1324;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 14px;
+      outline: none;
+      font-size: 15px;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .checks { display: grid; gap: 10px; margin-top: 14px; }
+    .check {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: #0b1324;
+    }
+    .actions { display: flex; gap: 10px; margin-top: 18px; }
+    button {
+      border: 0; border-radius: 12px; padding: 13px 16px; font-size: 15px; cursor: pointer;
+    }
+    .primary { background: var(--accent); color: white; flex: 1; }
+    .primary:active { background: var(--accent2); }
+    .secondary { background: #1f2937; color: var(--text); }
+    .hint { margin-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .status {
+      margin-bottom: 14px; padding: 12px 14px; border-radius: 12px; display: none; line-height: 1.45;
+      border: 1px solid #334155; background: #0b1324; color: var(--muted);
+    }
+    .status.show { display: block; }
+    .status.error { border-color: #7f1d1d; background: #1f1111; color: #fecaca; }
+    .status.ok { border-color: #14532d; background: #0f1f17; color: #bbf7d0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div id="status" class="status"></div>
+      <h1>Редактор постов</h1>
+      <p class="sub">Без внешних скриптов и редиректов. Эта страница безопасно открывается в Telegram Mini App и отправляет данные обратно боту.</p>
+
+      <label class="label" for="title">Заголовок</label>
+      <input id="title" type="text" maxlength="256" placeholder="Например: Важное объявление" />
+
+      <label class="label" for="comment">Текст поста</label>
+      <textarea id="comment" placeholder="Введите текст поста"></textarea>
+
+      <label class="label" for="template">Доп. блок</label>
+      <textarea id="template" placeholder="Необязательно: шаблон, хэштеги, подпись"></textarea>
+
+      <div class="checks">
+        <label class="check"><input id="open_chat" type="checkbox" /> Добавить кнопку чата</label>
+        <label class="check"><input id="pin" type="checkbox" /> Закрепить пост</label>
+        <label class="check"><input id="silent" type="checkbox" /> Тихая публикация</label>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="sendBtn">Отправить в бота</button>
+        <button class="secondary" id="closeBtn" type="button">Закрыть</button>
+      </div>
+
+      <div class="hint">Если страница открыта не в Telegram, кнопка отправки покажет тестовое сообщение вместо отправки WebApp данных.</div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    const statusEl = document.getElementById('status');
+    const showStatus = (text, type='') => {
+      statusEl.textContent = text;
+      statusEl.className = 'status show' + (type ? ' ' + type : '');
+    };
+
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      tg.MainButton.hide();
+    } else {
+      showStatus('Страница открыта вне Telegram. Это режим проверки.', 'ok');
+    }
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      if (tg) tg.close();
+      else showStatus('Закрытие доступно только внутри Telegram Mini App.');
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', () => {
+      const payload = {
+        title: document.getElementById('title').value.trim(),
+        comment: document.getElementById('comment').value.trim(),
+        template: document.getElementById('template').value.trim(),
+        open_chat: document.getElementById('open_chat').checked,
+        pin: document.getElementById('pin').checked,
+        silent: document.getElementById('silent').checked,
+      };
+
+      if (!payload.title && !payload.comment && !payload.template) {
+        showStatus('Заполни хотя бы одно поле.', 'error');
+        return;
+      }
+
+      const json = JSON.stringify(payload);
+      if (tg) {
+        try {
+          tg.sendData(json);
+          showStatus('Данные отправлены в бота.', 'ok');
+          setTimeout(() => tg.close(), 300);
+        } catch (e) {
+          showStatus('Ошибка отправки данных: ' + e, 'error');
+        }
+      } else {
+        showStatus('Тестовый режим. Данные не отправлены, потому что страница открыта вне Telegram.', 'ok');
+        console.log(json);
+      }
+    });
+  </script>
+</body>
+</html>
