@@ -1,1381 +1,303 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Редактор постов</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-window.addEventListener('DOMContentLoaded', function(){
-  if (!window.Telegram || !window.Telegram.WebApp) {
-    var el = document.getElementById('outsideTelegramNotice');
-    if (el) el.style.display = 'block';
-  }
-});
-</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Geologica:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-/* ─── TOKENS ─────────────────────────────────────────────── */
-:root {
-  --bg:        #0e0f11;
-  --surface:   #16181c;
-  --surface2:  #1e2128;
-  --surface3:  #262a33;
-  --border:    #2a2f3a;
-  --border2:   #353b49;
-  --accent:    #4f8ef7;
-  --accent2:   #7bb3ff;
-  --accent-glow: rgba(79,142,247,0.18);
-  --green:     #3ecf8e;
-  --red:       #ff5c5c;
-  --text:      #e8eaf0;
-  --text2:     #8b92a5;
-  --text3:     #555e72;
-  --radius:    14px;
-  --radius-sm: 8px;
-  --shadow:    0 4px 24px rgba(0,0,0,0.45);
-  --font-head: 'Unbounded', sans-serif;
-  --font-body: 'Geologica', sans-serif;
-  --transition: 0.18s cubic-bezier(0.4,0,0.2,1);
-}
-
-/* ─── RESET ──────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 15px; -webkit-text-size-adjust: 100%; }
-body {
-  font-family: var(--font-body);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ─── SCROLLBAR ─────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-/* ─── LAYOUT ─────────────────────────────────────────────── */
-.app {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  max-width: 600px;
-  margin: 0 auto;
-  padding-bottom: 90px;
-}
-
-/* ─── HEADER ─────────────────────────────────────────────── */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 20px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  backdrop-filter: blur(12px);
-}
-.header-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--accent), #7b5cf7);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
-  box-shadow: 0 0 16px var(--accent-glow);
-  flex-shrink: 0;
-}
-.header-title {
-  font-family: var(--font-head);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--text);
-  line-height: 1.2;
-}
-.header-sub {
-  font-size: 0.72rem;
-  color: var(--text3);
-  font-weight: 400;
-  margin-top: 1px;
-}
-.step-dots {
-  margin-left: auto;
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-.step-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--border2);
-  transition: var(--transition);
-}
-.step-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
-.step-dot.done { background: var(--green); }
-
-/* ─── STEP PAGES ─────────────────────────────────────────── */
-.steps-wrapper {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-.step-page {
-  display: none;
-  animation: fadeSlide 0.22s ease both;
-  padding: 20px;
-}
-.step-page.active { display: block; }
-@keyframes fadeSlide {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ─── SECTION LABELS ─────────────────────────────────────── */
-.section-label {
-  font-family: var(--font-head);
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-/* ─── TEXT FIELDS ────────────────────────────────────────── */
-.field-wrap {
-  margin-bottom: 14px;
-  position: relative;
-}
-.field-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--text2);
-  margin-bottom: 6px;
-  display: block;
-}
-.field-input, .field-textarea {
-  width: 100%;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  outline: none;
-  transition: border-color var(--transition), box-shadow var(--transition);
-  resize: none;
-}
-.field-input { padding: 11px 42px 11px 14px; }
-.field-textarea { padding: 11px 42px 11px 14px; min-height: 90px; line-height: 1.55; }
-.field-input:focus, .field-textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-.field-input::placeholder, .field-textarea::placeholder { color: var(--text3); }
-
-/* emoji trigger button inside fields */
-.emoji-btn {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  border: none;
-  background: var(--surface3);
-  color: var(--text2);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  transition: background var(--transition), transform var(--transition);
-  z-index: 2;
-  -webkit-tap-highlight-color: transparent;
-}
-.emoji-btn:hover { background: var(--surface2); transform: scale(1.08); }
-.emoji-btn:active { transform: scale(0.93); }
-
-/* ─── EMOJI PICKER ───────────────────────────────────────── */
-.emoji-picker {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: none;
-  flex-direction: column;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  animation: slideUp 0.22s ease both;
-}
-.emoji-picker.open { display: flex; }
-@keyframes slideUp {
-  from { transform: translateY(60px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-.emoji-picker-header {
-  display: flex;
-  align-items: center;
-  padding: 14px 16px 10px;
-  gap: 10px;
-  border-bottom: 1px solid var(--border);
-}
-.emoji-search {
-  flex: 1;
-  background: var(--surface2);
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 12px;
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  outline: none;
-}
-.emoji-search:focus { border-color: var(--accent); }
-.emoji-close {
-  background: var(--surface3);
-  border: none;
-  border-radius: 8px;
-  color: var(--text2);
-  padding: 7px 12px;
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  transition: background var(--transition);
-}
-.emoji-close:hover { background: var(--border2); }
-.emoji-cats {
-  display: flex;
-  gap: 4px;
-  padding: 8px 12px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--border);
-  scrollbar-width: none;
-}
-.emoji-cats::-webkit-scrollbar { display: none; }
-.emoji-cat-btn {
-  background: none;
-  border: 1.5px solid transparent;
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 1rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: var(--transition);
-  color: var(--text2);
-  flex-shrink: 0;
-}
-.emoji-cat-btn.active {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-  color: var(--accent2);
-}
-.emoji-grid {
-  flex: 1;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-  padding: 8px 10px;
-  align-content: start;
-}
-.emoji-item {
-  aspect-ratio: 1;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background var(--transition), transform var(--transition);
-  -webkit-tap-highlight-color: transparent;
-}
-.emoji-item:hover { background: var(--surface3); transform: scale(1.12); }
-.emoji-item:active { transform: scale(0.9); }
-
-/* ─── MEDIA UPLOAD ───────────────────────────────────────── */
-.media-zone {
-  border: 2px dashed var(--border2);
-  border-radius: var(--radius);
-  padding: 28px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
-  margin-bottom: 14px;
-  position: relative;
-  overflow: hidden;
-}
-.media-zone:hover, .media-zone.drag-over {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-}
-.media-zone-icon { font-size: 2.2rem; margin-bottom: 8px; display: block; }
-.media-zone-text { font-size: 0.82rem; color: var(--text2); line-height: 1.5; }
-.media-zone-hint { font-size: 0.72rem; color: var(--text3); margin-top: 4px; }
-.media-preview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.media-thumb {
-  aspect-ratio: 1;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  position: relative;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-}
-.media-thumb img, .media-thumb video {
-  width: 100%; height: 100%;
-  object-fit: cover;
-}
-.media-thumb-remove {
-  position: absolute;
-  top: 4px; right: 4px;
-  width: 22px; height: 22px;
-  background: rgba(0,0,0,0.7);
-  border: none;
-  border-radius: 50%;
-  color: white;
-  font-size: 11px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background var(--transition);
-}
-.media-thumb-remove:hover { background: var(--red); }
-.media-type-badge {
-  position: absolute;
-  bottom: 4px; left: 4px;
-  background: rgba(0,0,0,0.75);
-  color: var(--text2);
-  font-size: 0.6rem;
-  padding: 2px 5px;
-  border-radius: 4px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-/* ─── TEMPLATES ──────────────────────────────────────────── */
-.templates-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.template-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: border-color var(--transition), background var(--transition), transform var(--transition);
-  position: relative;
-}
-.template-card:hover { border-color: var(--border2); background: var(--surface2); transform: translateX(3px); }
-.template-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-}
-.template-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
-}
-.template-icon { font-size: 1.1rem; }
-.template-name {
-  font-weight: 500;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-.template-preview {
-  font-size: 0.75rem;
-  color: var(--text3);
-  line-height: 1.45;
-  white-space: pre-line;
-}
-.template-check {
-  position: absolute;
-  right: 12px; top: 50%;
-  transform: translateY(-50%);
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--border2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
-  transition: var(--transition);
-  flex-shrink: 0;
-}
-.template-card.selected .template-check {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-}
-
-/* custom template editor */
-.custom-template-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  color: var(--accent2);
-  cursor: pointer;
-  padding: 8px 0;
-  margin-bottom: 8px;
-}
-.custom-template-toggle svg { flex-shrink: 0; }
-
-/* ─── TOGGLE SWITCH ──────────────────────────────────────── */
-.toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  margin-bottom: 10px;
-  border: 1.5px solid var(--border);
-  cursor: pointer;
-  transition: border-color var(--transition);
-}
-.toggle-row:hover { border-color: var(--border2); }
-.toggle-row-info { display: flex; align-items: center; gap: 10px; }
-.toggle-row-icon { font-size: 1.1rem; flex-shrink: 0; }
-.toggle-row-text { font-size: 0.85rem; font-weight: 500; }
-.toggle-row-sub { font-size: 0.72rem; color: var(--text3); margin-top: 1px; }
-.toggle {
-  position: relative;
-  width: 42px; height: 24px;
-  flex-shrink: 0;
-}
-.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-.toggle-track {
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  background: var(--surface3);
-  border: 1.5px solid var(--border2);
-  transition: var(--transition);
-}
-.toggle input:checked ~ .toggle-track {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.toggle-thumb {
-  position: absolute;
-  top: 3px; left: 3px;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--text2);
-  transition: var(--transition);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-.toggle input:checked ~ .toggle-track .toggle-thumb {
-  transform: translateX(18px);
-  background: white;
-}
-
-/* ─── PREVIEW CARD ───────────────────────────────────────── */
-.preview-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  border: 1.5px solid var(--border);
-  overflow: hidden;
-  margin-bottom: 14px;
-}
-.preview-media-strip {
-  background: var(--surface2);
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text3);
-  font-size: 0.78rem;
-  gap: 6px;
-  padding: 10px;
-  flex-wrap: wrap;
-}
-.preview-media-thumb {
-  width: 48px; height: 48px;
-  border-radius: 6px;
-  object-fit: cover;
-  border: 1px solid var(--border);
-}
-.preview-body { padding: 16px; }
-.preview-title {
-  font-family: var(--font-head);
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-.preview-comment {
-  font-size: 0.85rem;
-  color: var(--text2);
-  line-height: 1.6;
-  margin-bottom: 10px;
-  white-space: pre-wrap;
-}
-.preview-template-block {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  font-size: 0.78rem;
-  color: var(--text3);
-  line-height: 1.55;
-  white-space: pre-wrap;
-}
-.preview-badges {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.preview-badge {
-  font-size: 0.68rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.badge-media { background: rgba(79,142,247,0.15); color: var(--accent2); }
-.badge-open  { background: rgba(62,207,142,0.15); color: var(--green); }
-.badge-closed{ background: rgba(255,92,92,0.12); color: var(--red); }
-
-/* ─── BOTTOM BAR ─────────────────────────────────────────── */
-.bottom-bar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 100;
-  padding: 12px 20px 20px;
-  background: linear-gradient(to top, var(--bg) 70%, transparent);
-  display: flex;
-  gap: 10px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-.btn {
-  flex: 1;
-  padding: 14px;
-  border-radius: var(--radius-sm);
-  border: none;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 0.88rem;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  gap: 7px;
-  transition: var(--transition);
-  -webkit-tap-highlight-color: transparent;
-}
-.btn-cancel {
-  background: var(--surface2);
-  color: var(--text2);
-  border: 1.5px solid var(--border);
-  flex: 0 0 auto;
-  width: 52px;
-  padding: 14px;
-}
-.btn-cancel:hover { background: var(--surface3); }
-.btn-secondary {
-  background: var(--surface2);
-  color: var(--accent2);
-  border: 1.5px solid var(--border);
-}
-.btn-secondary:hover { border-color: var(--accent); background: var(--accent-glow); }
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 2px 16px var(--accent-glow);
-}
-.btn-primary:hover { background: #6199f8; transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
-.btn-publish {
-  background: linear-gradient(135deg, var(--green), #28b070);
-  color: white;
-  box-shadow: 0 2px 16px rgba(62,207,142,0.25);
-}
-.btn-publish:hover { transform: translateY(-1px); }
-.btn-publish:active { transform: translateY(0); }
-.btn svg { width: 16px; height: 16px; }
-
-/* ─── CHAR COUNTER ───────────────────────────────────────── */
-.char-counter {
-  position: absolute;
-  bottom: 10px;
-  right: 44px;
-  font-size: 0.65rem;
-  color: var(--text3);
-  pointer-events: none;
-  transition: color var(--transition);
-}
-.char-counter.warn { color: #f0a830; }
-.char-counter.over { color: var(--red); }
-
-/* ─── NOTIFY TOAST ───────────────────────────────────────── */
-.toast {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  color: var(--text);
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  font-weight: 500;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  z-index: 300;
-  white-space: nowrap;
-  box-shadow: var(--shadow);
-}
-.toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* ─── SPINNER ────────────────────────────────────────────── */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner {
-  width: 18px; height: 18px;
-  border: 2.5px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-/* ─── STEP INDICATOR ─────────────────────────────────────── */
-.step-nav {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 20px;
-  margin-bottom: 4px;
-  overflow: hidden;
-}
-.step-nav-item {
-  flex: 1;
-  text-align: center;
-  font-size: 0.65rem;
-  font-family: var(--font-head);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--text3);
-  padding: 8px 4px;
-  cursor: pointer;
-  position: relative;
-  text-transform: uppercase;
-  transition: color var(--transition);
-}
-.step-nav-item::after {
-  content: '';
-  display: block;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--border);
-  margin-top: 6px;
-  transition: background var(--transition);
-}
-.step-nav-item.active { color: var(--accent2); }
-.step-nav-item.active::after { background: var(--accent); }
-.step-nav-item.done { color: var(--green); }
-.step-nav-item.done::after { background: var(--green); }
-
-/* ─── MISC ────────────────────────────────────────────── */
-.divider { height: 1px; background: var(--border); margin: 14px 0; }
-.info-row {
-  display: flex; align-items: flex-start;
-  gap: 8px;
-  font-size: 0.78rem;
-  color: var(--text3);
-  line-height: 1.5;
-  padding: 10px 0;
-}
-.info-row-icon { flex-shrink: 0; font-size: 1rem; margin-top: -1px; }
-input[type=file] { display: none; }
-
-/* empty state */
-.empty-preview {
-  text-align: center;
-  padding: 30px 20px;
-  color: var(--text3);
-  font-size: 0.82rem;
-}
-.empty-preview-icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SecurityBot - Редактор постов</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --card-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #2563eb;
+      --accent-2: #3b82f6;
+      --border: #334155;
+      --danger: #ef4444;
+      --ok: #10b981;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .wrap {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 16px 14px 110px;
+    }
+    .header {
+      background: rgba(17,24,39,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.25);
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      margin: 0;
+    }
+    .notice {
+      display: none;
+      background: rgba(239,68,68,.12);
+      color: #fecaca;
+      border: 1px solid rgba(239,68,68,.35);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+    .card {
+      background: rgba(17,24,39,.94);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.2);
+    }
+    .label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 8px;
+      font-weight: 700;
+    }
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+    }
+    .input:focus, .textarea:focus, .select:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+    .textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .checks {
+      display: grid;
+      gap: 10px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      cursor: pointer;
+      user-select: none;
+    }
+    .check input { width: 18px; height: 18px; }
+    .preview {
+      white-space: pre-wrap;
+      line-height: 1.55;
+      min-height: 84px;
+      color: var(--text);
+    }
+    .preview.empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+    .actions {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 14px 18px;
+      background: linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,.96) 35%, rgba(15,23,42,1) 100%);
+    }
+    .actions-inner {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      box-shadow: 0 10px 30px rgba(37,99,235,.28);
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+    @media (max-width: 560px) {
+      .row, .actions-inner { grid-template-columns: 1fr; }
+      .title { font-size: 21px; }
+    }
+  </style>
 </head>
 <body>
-
-<div id="outsideTelegramNotice" style="display:none;padding:12px 16px;background:#1e2128;color:#e8eaf0;border-bottom:1px solid #2a2f3a;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;">
-  Это файл Mini App для Telegram. Открывай его через кнопку <b>/newpost</b> после деплоя на HTTPS.
-</div>
-
-<div class="app" id="app">
-
-  <!-- ─── HEADER ──────────────────────────────────────────── -->
-  <div class="header">
-    <div class="header-icon">✍️</div>
-    <div>
-      <div class="header-title">Редактор постов</div>
-      <div class="header-sub" id="headerSub">Шаг 1 из 4</div>
-    </div>
-    <div class="step-dots">
-      <div class="step-dot active" id="dot0"></div>
-      <div class="step-dot" id="dot1"></div>
-      <div class="step-dot" id="dot2"></div>
-      <div class="step-dot" id="dot3"></div>
-    </div>
-  </div>
-
-  <!-- ─── STEP NAV ─────────────────────────────────────────── -->
-  <div class="step-nav">
-    <div class="step-nav-item active" id="snav0" onclick="goToStep(0)">Контент</div>
-    <div class="step-nav-item" id="snav1" onclick="goToStep(1)">Медиа</div>
-    <div class="step-nav-item" id="snav2" onclick="goToStep(2)">Шаблон</div>
-    <div class="step-nav-item" id="snav3" onclick="goToStep(3)">Превью</div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!-- STEP 0: КОНТЕНТ ──────────────────────────────────────── -->
-  <div class="step-page active" id="step0">
-
-    <div class="section-label">Заголовок</div>
-    <div class="field-wrap">
-      <textarea class="field-textarea" id="titleField" rows="2"
-        placeholder="Первая строка — заголовок поста…" maxlength="256"
-        oninput="updateCounter(this,'titleCounter',256); syncPreview()"
-        style="min-height:68px; font-weight:600; font-size:0.97rem;"></textarea>
-      <span class="char-counter" id="titleCounter">0/256</span>
-      <button class="emoji-btn" onclick="openEmoji('titleField')" title="Эмодзи">😊</button>
+  <div class="wrap">
+    <div id="outsideTelegramNotice" class="notice">
+      Эта страница рассчитана на открытие из Telegram Mini App. В обычном браузере ты можешь проверить внешний вид, но отправка данных в бота работать не будет.
     </div>
 
-    <div class="section-label">Комментарий</div>
-    <div class="field-wrap">
-      <textarea class="field-textarea" id="commentField" rows="5"
-        placeholder="Твой текст, мысли, описание…" maxlength="4096"
-        oninput="updateCounter(this,'commentCounter',4096); syncPreview()"
-        style="min-height:130px;"></textarea>
-      <span class="char-counter" id="commentCounter">0/4096</span>
-      <button class="emoji-btn" onclick="openEmoji('commentField')" title="Эмодзи">😊</button>
+    <div class="header">
+      <h1 class="title">SecurityBot - редактор постов</h1>
+      <p class="sub">Чистая версия Mini App без сторонних скриптов, iframe и редиректов. Заполни поля, проверь превью и отправь данные обратно боту.</p>
     </div>
 
-    <div class="divider"></div>
-    <div class="section-label">Настройки публикации</div>
+    <div class="card">
+      <label class="label" for="title">Заголовок</label>
+      <input id="title" class="input" type="text" placeholder="Например: Обновление правил" maxlength="120">
+      <div class="hint">Необязательно. Будет выделен жирным в начале поста.</div>
+    </div>
 
-    <label class="toggle-row" onclick="toggle('openChat')">
-      <div class="toggle-row-info">
-        <span class="toggle-row-icon">💬</span>
+    <div class="card">
+      <label class="label" for="comment">Текст поста</label>
+      <textarea id="comment" class="textarea" placeholder="Напиши основной текст поста"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="row">
         <div>
-          <div class="toggle-row-text">Открыть чат</div>
-          <div class="toggle-row-sub">Читатели перейдут в чат при нажатии</div>
+          <label class="label" for="template">Шаблон</label>
+          <select id="template" class="select">
+            <option value="">Без шаблона</option>
+            <option value="📌 Важно\nПожалуйста, ознакомьтесь с изменениями.">Важно</option>
+            <option value="✅ Готово\nИзменения успешно применены.">Готово</option>
+            <option value="⚠️ Внимание\nПросьба соблюдать правила чата.">Внимание</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Параметры</label>
+          <div class="checks">
+            <label class="check"><input id="open_chat" type="checkbox"> Добавить кнопку чата</label>
+            <label class="check"><input id="pin" type="checkbox"> Закрепить сообщение</label>
+            <label class="check"><input id="silent" type="checkbox"> Тихая публикация</label>
+          </div>
         </div>
       </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="openChat" onchange="syncPreview()">
-        <div class="toggle-track"><div class="toggle-thumb"></div></div>
-      </label>
-    </label>
+    </div>
 
-    <label class="toggle-row" onclick="toggle('pinPost')">
-      <div class="toggle-row-info">
-        <span class="toggle-row-icon">📌</span>
-        <div>
-          <div class="toggle-row-text">Закрепить пост</div>
-          <div class="toggle-row-sub">Пост будет закреплён в канале</div>
-        </div>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="pinPost">
-        <div class="toggle-track"><div class="toggle-thumb"></div></div>
-      </label>
-    </label>
-
-    <label class="toggle-row" onclick="toggle('silentPost')">
-      <div class="toggle-row-info">
-        <span class="toggle-row-icon">🔕</span>
-        <div>
-          <div class="toggle-row-text">Тихая публикация</div>
-          <div class="toggle-row-sub">Без уведомления подписчиков</div>
-        </div>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="silentPost">
-        <div class="toggle-track"><div class="toggle-thumb"></div></div>
-      </label>
-    </label>
-
+    <div class="card">
+      <label class="label">Превью</label>
+      <div id="preview" class="preview empty">Пост пока пустой</div>
+    </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!-- STEP 1: МЕДИА ────────────────────────────────────────── -->
-  <div class="step-page" id="step1">
-
-    <div class="section-label">Медиафайлы <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:0.75rem;letter-spacing:0">(необязательно)</span></div>
-
-    <div class="media-zone" id="mediaZone"
-      onclick="document.getElementById('fileInput').click()"
-      ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFiles(event)">
-      <span class="media-zone-icon">🖼️</span>
-      <div class="media-zone-text">Нажми или перетащи файлы</div>
-      <div class="media-zone-hint">Фото · Видео · GIF · до 10 файлов</div>
+  <div class="actions">
+    <div class="actions-inner">
+      <button type="button" class="btn-secondary" id="previewBtn">Обновить превью</button>
+      <button type="button" class="btn-primary" id="sendBtn">Отправить в бота</button>
     </div>
-    <input type="file" id="fileInput" multiple accept="image/*,video/*"
-      onchange="handleFiles(this.files)">
-
-    <div class="media-preview" id="mediaPreview"></div>
-
-    <div class="info-row">
-      <span class="info-row-icon">ℹ️</span>
-      <span>Первый файл будет главным. Можно загрузить до 10 файлов — они отправятся как медиагруппа.</span>
-    </div>
-
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!-- STEP 2: ШАБЛОН ───────────────────────────────────────── -->
-  <div class="step-page" id="step2">
-
-    <div class="section-label">Готовые шаблоны</div>
-    <div class="templates-grid" id="templatesGrid"></div>
-
-    <div class="divider"></div>
-    <div class="section-label">Свой шаблон</div>
-
-    <div class="field-wrap">
-      <textarea class="field-textarea" id="customTemplate" rows="4"
-        placeholder="Напиши свой шаблон текста…&#10;Например: 👇 Подписывайтесь на канал!"
-        maxlength="1024"
-        oninput="updateCounter(this,'customTemplateCounter',1024); customTemplateChanged()"
-        style="min-height:100px;"></textarea>
-      <span class="char-counter" id="customTemplateCounter">0/1024</span>
-      <button class="emoji-btn" onclick="openEmoji('customTemplate')" title="Эмодзи">😊</button>
-    </div>
-
-    <div class="info-row">
-      <span class="info-row-icon">💡</span>
-      <span>Шаблон добавляется в конец поста. Выбери готовый или напиши свой — они не совмещаются.</span>
-    </div>
-
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!-- STEP 3: ПРЕВЬЮ ───────────────────────────────────────── -->
-  <div class="step-page" id="step3">
-
-    <div class="section-label">Предпросмотр поста</div>
-
-    <div class="preview-card" id="previewCard">
-      <div class="preview-media-strip" id="previewMedia">
-        <span style="font-size:1.5rem">🖼️</span> нет медиа
-      </div>
-      <div class="preview-body">
-        <div class="preview-title" id="previewTitle">— заголовок не указан —</div>
-        <div class="preview-comment" id="previewComment" style="display:none"></div>
-        <div class="preview-template-block" id="previewTemplate" style="display:none"></div>
-        <div class="preview-badges" id="previewBadges"></div>
-      </div>
-    </div>
-
-    <div class="section-label">Итог</div>
-    <div id="summaryRows"></div>
-
-    <div class="info-row" style="margin-top:8px">
-      <span class="info-row-icon">🚀</span>
-      <span>После нажатия «Опубликовать» пост будет отправлен в канал через бота.</span>
-    </div>
-
-  </div>
-
-</div><!-- /app -->
-
-<!-- ─── BOTTOM BAR ───────────────────────────────────────── -->
-<div class="bottom-bar" id="bottomBar">
-  <button class="btn btn-cancel" id="btnBack" onclick="prevStep()" title="Назад">←</button>
-  <button class="btn btn-secondary" id="btnNext" onclick="nextStep()">
-    <span>Далее</span>
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
-  </button>
-  <button class="btn btn-publish" id="btnPublish" style="display:none" onclick="publish()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8l5 5L14 3"/></svg>
-    <span>Опубликовать</span>
-  </button>
-</div>
-
-<!-- ─── EMOJI PICKER ─────────────────────────────────────── -->
-<div class="emoji-picker" id="emojiPicker">
-  <div class="emoji-picker-header">
-    <input class="emoji-search" id="emojiSearch" placeholder="Поиск эмодзи…" oninput="filterEmoji(this.value)">
-    <button class="emoji-close" onclick="closeEmoji()">Закрыть</button>
-  </div>
-  <div class="emoji-cats" id="emojiCats"></div>
-  <div class="emoji-grid" id="emojiGrid"></div>
-</div>
-
-<!-- ─── TOAST ────────────────────────────────────────────── -->
-<div class="toast" id="toast"></div>
-
-<script>
-/* ════════════════════════════════════════════════════════════
-   TELEGRAM WEB APP INIT
-   ════════════════════════════════════════════════════════════ */
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-  tg.BackButton.onClick(() => prevStep());
-}
-
-/* ════════════════════════════════════════════════════════════
-   STATE
-   ════════════════════════════════════════════════════════════ */
-let currentStep = 0;
-const STEPS = 4;
-let mediaFiles = [];          // { file, url, type }
-let selectedTemplate = null;  // template id or 'custom'
-
-/* ════════════════════════════════════════════════════════════
-   TEMPLATES DATA
-   ════════════════════════════════════════════════════════════ */
-const TEMPLATES = [
-  {
-    id: 'subscribe',
-    icon: '📣',
-    name: 'Подписка',
-    text: '👇 Подпишись, чтобы не пропустить следующий пост!\n🔔 Включи уведомления'
-  },
-  {
-    id: 'promo',
-    icon: '🔥',
-    name: 'Акция',
-    text: '⏰ Предложение ограничено!\n💥 Успей воспользоваться — количество мест/товаров заканчивается'
-  },
-  {
-    id: 'qa',
-    icon: '💬',
-    name: 'Вопрос к читателям',
-    text: '❓ А что думаешь ты? Напиши в комментариях 👇\n📊 Проголосуй в нашем опросе!'
-  },
-  {
-    id: 'share',
-    icon: '🔄',
-    name: 'Поделиться',
-    text: '📤 Поделись с другом — возможно ему тоже будет полезно!\n♻️ Репостни этот материал'
-  },
-  {
-    id: 'links',
-    icon: '🔗',
-    name: 'Наши ресурсы',
-    text: '🌐 Сайт: ваш-сайт.ru\n📱 Instagram: @yourpage\n💼 По вопросам: @yourmanager'
-  },
-  {
-    id: 'none',
-    icon: '🚫',
-    name: 'Без шаблона',
-    text: ''
-  }
-];
-
-/* ════════════════════════════════════════════════════════════
-   STEP NAVIGATION
-   ════════════════════════════════════════════════════════════ */
-function goToStep(n) {
-  if (n < 0 || n >= STEPS) return;
-  document.getElementById('step' + currentStep).classList.remove('active');
-  document.getElementById('snav' + currentStep).classList.remove('active');
-
-  currentStep = n;
-
-  document.getElementById('step' + n).classList.add('active');
-  updateStepUI();
-  if (n === 3) buildPreview();
-}
-
-function nextStep() { goToStep(currentStep + 1); }
-function prevStep() { goToStep(currentStep - 1); }
-
-function updateStepUI() {
-  const labels = ['Контент', 'Медиафайлы', 'Шаблон', 'Превью'];
-  document.getElementById('headerSub').textContent = `Шаг ${currentStep+1} из ${STEPS} — ${labels[currentStep]}`;
-
-  for (let i = 0; i < STEPS; i++) {
-    const dot  = document.getElementById('dot' + i);
-    const snav = document.getElementById('snav' + i);
-    dot.className  = 'step-dot' + (i < currentStep ? ' done' : i === currentStep ? ' active' : '');
-    snav.className = 'step-nav-item' + (i < currentStep ? ' done' : i === currentStep ? ' active' : '');
-  }
-
-  const btnBack = document.getElementById('btnBack');
-  const btnNext = document.getElementById('btnNext');
-  const btnPub  = document.getElementById('btnPublish');
-
-  btnBack.style.opacity = currentStep === 0 ? '0.35' : '1';
-  btnBack.style.pointerEvents = currentStep === 0 ? 'none' : 'auto';
-
-  if (currentStep === STEPS - 1) {
-    btnNext.style.display  = 'none';
-    btnPub.style.display   = 'flex';
-  } else {
-    btnNext.style.display  = 'flex';
-    btnPub.style.display   = 'none';
-  }
-
-  if (tg) {
-    currentStep > 0 ? tg.BackButton.show() : tg.BackButton.hide();
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
-   CHAR COUNTER
-   ════════════════════════════════════════════════════════════ */
-function updateCounter(el, counterId, max) {
-  const len = el.value.length;
-  const counter = document.getElementById(counterId);
-  counter.textContent = `${len}/${max}`;
-  counter.className = 'char-counter' + (len > max * 0.9 ? (len >= max ? ' over' : ' warn') : '');
-}
-
-/* ════════════════════════════════════════════════════════════
-   MEDIA HANDLING
-   ════════════════════════════════════════════════════════════ */
-function handleFiles(fileList) {
-  const remaining = 10 - mediaFiles.length;
-  const toAdd = Array.from(fileList).slice(0, remaining);
-  toAdd.forEach(f => {
-    const url = URL.createObjectURL(f);
-    const type = f.type.startsWith('video') ? 'video' : 'photo';
-    mediaFiles.push({ file: f, url, type });
-  });
-  renderMedia();
-  if (fileList.length > remaining) showToast(`Максимум 10 файлов. Добавлено ${remaining}.`);
-}
-
-function renderMedia() {
-  const grid = document.getElementById('mediaPreview');
-  grid.innerHTML = '';
-  mediaFiles.forEach((m, i) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'media-thumb';
-    const tag = m.type === 'video' ? 'video' : 'img';
-    thumb.innerHTML = `
-      <${tag} src="${m.url}" ${m.type==='video'?'muted playsinline':''}></${tag}>
-      <button class="media-thumb-remove" onclick="removeMedia(${i})">✕</button>
-      <span class="media-type-badge">${m.type==='video'?'VID':'IMG'}</span>
-      ${i===0?'<span class="media-type-badge" style="left:auto;right:4px;color:var(--accent2)">ГЛАВНОЕ</span>':''}
-    `;
-    grid.appendChild(thumb);
-  });
-  document.getElementById('mediaZone').style.display = mediaFiles.length >= 10 ? 'none' : '';
-}
-
-function removeMedia(i) {
-  URL.revokeObjectURL(mediaFiles[i].url);
-  mediaFiles.splice(i, 1);
-  renderMedia();
-}
-
-function dragOver(e) { e.preventDefault(); document.getElementById('mediaZone').classList.add('drag-over'); }
-function dragLeave()  { document.getElementById('mediaZone').classList.remove('drag-over'); }
-function dropFiles(e) {
-  e.preventDefault();
-  dragLeave();
-  handleFiles(e.dataTransfer.files);
-}
-
-/* ════════════════════════════════════════════════════════════
-   TEMPLATES
-   ════════════════════════════════════════════════════════════ */
-function renderTemplates() {
-  const grid = document.getElementById('templatesGrid');
-  grid.innerHTML = '';
-  TEMPLATES.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'template-card' + (selectedTemplate === t.id ? ' selected' : '');
-    card.id = 'tpl_' + t.id;
-    card.onclick = () => selectTemplate(t.id);
-    card.innerHTML = `
-      <div class="template-card-header">
-        <span class="template-icon">${t.icon}</span>
-        <span class="template-name">${t.name}</span>
-        <div class="template-check">${selectedTemplate === t.id ? '✓' : ''}</div>
-      </div>
-      ${t.text ? `<div class="template-preview">${t.text}</div>` : '<div class="template-preview" style="color:var(--text3)">Текст не будет добавлен</div>'}
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function selectTemplate(id) {
-  selectedTemplate = id;
-  // clear custom if preset chosen
-  if (id !== 'custom') document.getElementById('customTemplate').value = '';
-  renderTemplates();
-  syncPreview();
-  showToast('Шаблон выбран ✓');
-}
-
-function customTemplateChanged() {
-  const val = document.getElementById('customTemplate').value.trim();
-  if (val) {
-    selectedTemplate = 'custom';
-    renderTemplates(); // deselect presets
-  }
-  syncPreview();
-}
-
-function getTemplateText() {
-  if (selectedTemplate === 'custom') return document.getElementById('customTemplate').value.trim();
-  if (selectedTemplate === 'none') return '';
-  const t = TEMPLATES.find(x => x.id === selectedTemplate);
-  return t ? t.text : '';
-}
-
-/* ════════════════════════════════════════════════════════════
-   PREVIEW
-   ════════════════════════════════════════════════════════════ */
-function syncPreview() { if (currentStep === 3) buildPreview(); }
-
-function buildPreview() {
-  const title    = document.getElementById('titleField').value.trim();
-  const comment  = document.getElementById('commentField').value.trim();
-  const tplText  = getTemplateText();
-  const openChat = document.getElementById('openChat').checked;
-  const pin      = document.getElementById('pinPost').checked;
-  const silent   = document.getElementById('silentPost').checked;
-
-  // title
-  const previewTitle = document.getElementById('previewTitle');
-  previewTitle.textContent = title || '— заголовок не указан —';
-  previewTitle.style.color = title ? 'var(--text)' : 'var(--text3)';
-
-  // comment
-  const previewComment = document.getElementById('previewComment');
-  if (comment) {
-    previewComment.textContent = comment;
-    previewComment.style.display = '';
-  } else {
-    previewComment.style.display = 'none';
-  }
-
-  // template
-  const previewTemplate = document.getElementById('previewTemplate');
-  if (tplText) {
-    previewTemplate.textContent = tplText;
-    previewTemplate.style.display = '';
-  } else {
-    previewTemplate.style.display = 'none';
-  }
-
-  // media strip
-  const strip = document.getElementById('previewMedia');
-  if (mediaFiles.length > 0) {
-    strip.innerHTML = mediaFiles.slice(0, 5).map(m =>
-      m.type === 'video'
-        ? `<video class="preview-media-thumb" src="${m.url}" muted></video>`
-        : `<img class="preview-media-thumb" src="${m.url}">`
-    ).join('') + (mediaFiles.length > 5 ? `<span style="color:var(--text3);font-size:0.8rem">+${mediaFiles.length-5}</span>` : '');
-  } else {
-    strip.innerHTML = '<span style="font-size:1.5rem">🖼️</span> нет медиа';
-  }
-
-  // badges
-  const badges = document.getElementById('previewBadges');
-  badges.innerHTML = '';
-  if (mediaFiles.length) badges.innerHTML += `<span class="preview-badge badge-media">📎 ${mediaFiles.length} файл(а)</span>`;
-  if (openChat) badges.innerHTML += `<span class="preview-badge badge-open">💬 Чат открыт</span>`;
-  else          badges.innerHTML += `<span class="preview-badge badge-closed">🔒 Чат закрыт</span>`;
-  if (pin)    badges.innerHTML += `<span class="preview-badge badge-open">📌 Закреплён</span>`;
-  if (silent) badges.innerHTML += `<span class="preview-badge badge-closed">🔕 Тихо</span>`;
-
-  // summary rows
-  const summary = document.getElementById('summaryRows');
-  const rows = [
-    ['📝', 'Заголовок', title ? title.slice(0,50) + (title.length>50?'…':'') : '—'],
-    ['💬', 'Текст', comment ? `${comment.length} симв.` : '—'],
-    ['🖼️', 'Медиа', mediaFiles.length ? `${mediaFiles.length} файл(а)` : 'нет'],
-    ['📋', 'Шаблон', getTemplateLabel()],
-    ['💬', 'Открыть чат', openChat ? '✅ Да' : '❌ Нет'],
-    ['📌', 'Закрепить', pin ? '✅ Да' : '❌ Нет'],
-    ['🔕', 'Тихо', silent ? '✅ Да' : '❌ Нет'],
-  ];
-  summary.innerHTML = rows.map(([icon, k, v]) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;
-      padding:9px 14px;border-bottom:1px solid var(--border);
-      font-size:0.82rem;">
-      <span style="color:var(--text2);">${icon} ${k}</span>
-      <span style="color:var(--text);font-weight:500;text-align:right;max-width:55%">${v}</span>
-    </div>
-  `).join('');
-}
-
-function getTemplateLabel() {
-  if (!selectedTemplate) return '—';
-  if (selectedTemplate === 'custom') return 'Свой текст';
-  const t = TEMPLATES.find(x => x.id === selectedTemplate);
-  return t ? t.name : '—';
-}
-
-/* ════════════════════════════════════════════════════════════
-   TOGGLES
-   ════════════════════════════════════════════════════════════ */
-function toggle(id) {
-  const el = document.getElementById(id);
-  el.checked = !el.checked;
-  syncPreview();
-}
-
-/* ════════════════════════════════════════════════════════════
-   EMOJI PICKER
-   ════════════════════════════════════════════════════════════ */
-const EMOJI_CATEGORIES = {
-  '😊 Смайлы': ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','💫','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖'],
-  '👋 Жесты': ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🙏','✍️','💅','🤳','💪','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👅','💋'],
-  '❤️ Сердца': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','✡️','🔯','🕎','☯️','☦️','🛐','⛎'],
-  '🔥 Популярные': ['🔥','✨','⚡','💥','🎉','🎊','🎁','🏆','🥇','💯','✅','❌','⚠️','🚀','💎','👑','🌟','⭐','💫','🎯','🎮','🎵','🎶','🎸','🎤','📸','📹','💻','📱','🖥','⌨️','🖱'],
-  '🐶 Животные': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🦆','🐦','🐤','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃'],
-  '🍕 Еда': ['🍎','🍊','🍋','🍌','🍍','🥭','🍇','🍓','🫐','🍈','🍒','🍑','🥝','🍅','🫒','🥥','🥑','🍆','🥔','🥕','🌽','🌶','🫑','🥒','🥬','🥦','🧄','🧅','🍄','🥜','🌰','🍞','🥐','🥖','🫓','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫔','🌮','🌯','🥙','🧆','🥚','🍳','🥘','🍲','🫕','🥗','🍿','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍦','🍧','🍨','🍩','🍪','☕','🍵','🧃','🥤','🧋','🍺','🍻','🥂','🍷'],
-  '✈️ Путешествия': ['🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','⛩','🕍','⛺','🏕','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉','🏞','🎠','🎡','🎢','🚂','🚃','🚄','🚅','🚆','🚇','🚈','🚉','🚊','🚝','🚞','🚋','🚌','🚍','🚎','🏎','🚐','🚑','🚒','🚓','🚔','🚕','🚖','🚗','🚘','🚙','🛻','🚚','🚛','🚜','🛵','🏍','🛺','🚲','🛴','🛹','🛼','🚏','🛣','🛤','⛽','🛞','🚨','✈️','🛫','🛬','🛩','💺','🚁','🛸','🚀','🛶','⛵','🚤','🛥','🛳','⛴','🚢'],
-  '💼 Работа': ['💼','📁','📂','📋','📊','📈','📉','🗒','🗓','📆','📅','🗑','📪','📫','📬','📭','📮','📯','📜','📃','📄','📑','🧾','📊','📋','📌','📍','🖇','📎','🖊','🖋','✒️','✏️','📝','🖍','📏','📐','✂️','🗂','🗃','🗄','🗑','🔒','🔓','🔏','🔐','🔑','🗝','🔨','🪓','⛏','⚒','🛠','🗡','⚔️','🛡','🔧','🔩','⚙️','🗜','⚖️','🦯','🔗'],
-};
-
-let currentEmojiTarget = null;
-let currentCategory = Object.keys(EMOJI_CATEGORIES)[0];
-
-function buildEmojiCats() {
-  const cats = document.getElementById('emojiCats');
-  cats.innerHTML = Object.keys(EMOJI_CATEGORIES).map(cat => {
-    const icon = cat.split(' ')[0];
-    return `<button class="emoji-cat-btn${cat===currentCategory?' active':''}"
-      onclick="switchCat('${cat}')">${icon}</button>`;
-  }).join('');
-}
-
-function switchCat(cat) {
-  currentCategory = cat;
-  buildEmojiCats();
-  renderEmojiGrid(EMOJI_CATEGORIES[cat]);
-  document.getElementById('emojiSearch').value = '';
-}
-
-function renderEmojiGrid(emojis) {
-  const grid = document.getElementById('emojiGrid');
-  grid.innerHTML = emojis.map(e =>
-    `<div class="emoji-item" onclick="insertEmoji('${e}')">${e}</div>`
-  ).join('');
-}
-
-function filterEmoji(q) {
-  if (!q.trim()) {
-    renderEmojiGrid(EMOJI_CATEGORIES[currentCategory]);
-    return;
-  }
-  const all = Object.values(EMOJI_CATEGORIES).flat();
-  // simple: show all (no name lookup)
-  renderEmojiGrid(all);
-}
-
-function openEmoji(targetId) {
-  currentEmojiTarget = targetId;
-  buildEmojiCats();
-  renderEmojiGrid(EMOJI_CATEGORIES[currentCategory]);
-  document.getElementById('emojiPicker').classList.add('open');
-  document.getElementById('emojiSearch').focus();
-}
-
-function closeEmoji() {
-  document.getElementById('emojiPicker').classList.remove('open');
-  if (currentEmojiTarget) {
-    document.getElementById(currentEmojiTarget)?.focus();
-  }
-}
-
-function insertEmoji(emoji) {
-  const el = document.getElementById(currentEmojiTarget);
-  if (!el) return;
-  const start = el.selectionStart;
-  const end   = el.selectionEnd;
-  el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
-  el.selectionStart = el.selectionEnd = start + emoji.length;
-  el.dispatchEvent(new Event('input'));
-  el.focus();
-  // keep picker open for multiple selections
-}
-
-/* ════════════════════════════════════════════════════════════
-   PUBLISH
-   ════════════════════════════════════════════════════════════ */
-async function publish() {
-  const title   = document.getElementById('titleField').value.trim();
-  const comment = document.getElementById('commentField').value.trim();
-
-  if (!title && !comment && mediaFiles.length === 0) {
-    showToast('⚠️ Пост пустой — добавь контент');
-    return;
-  }
-
-  const btn = document.getElementById('btnPublish');
-  btn.innerHTML = '<div class="spinner"></div><span>Публикация…</span>';
-  btn.disabled = true;
-
-  const data = {
-    title,
-    comment,
-    template:  getTemplateText(),
-    open_chat: document.getElementById('openChat').checked,
-    pin:       document.getElementById('pinPost').checked,
-    silent:    document.getElementById('silentPost').checked,
-    media_count: mediaFiles.length,
-    media_types: mediaFiles.map(m => m.type),
-  };
-
-  // send to Telegram WebApp
-  if (tg) {
-    // Convert media to base64 if needed (small files only for demo)
-    // In production, upload to server first and pass URLs
-    tg.sendData(JSON.stringify(data));
-    showToast('✅ Пост отправлен!');
-  } else {
-    // Dev mode: log to console
-    console.log('POST DATA:', data);
-    showToast('✅ Данные переданы (dev mode)');
-    setTimeout(() => {
-      btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8l5 5L14 3"/></svg><span>Опубликовать</span>';
-      btn.disabled = false;
-    }, 1500);
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
-   TOAST
-   ════════════════════════════════════════════════════════════ */
-let toastTimeout;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-/* ════════════════════════════════════════════════════════════
-   INIT
-   ════════════════════════════════════════════════════════════ */
-renderTemplates();
-updateStepUI();
-
-// Auto-select first textarea on load
-setTimeout(() => document.getElementById('titleField').focus(), 300);
-</script>
+  <script>
+    (function () {
+      const titleEl = document.getElementById('title');
+      const commentEl = document.getElementById('comment');
+      const templateEl = document.getElementById('template');
+      const openChatEl = document.getElementById('open_chat');
+      const pinEl = document.getElementById('pin');
+      const silentEl = document.getElementById('silent');
+      const previewEl = document.getElementById('preview');
+      const outsideTelegramNotice = document.getElementById('outsideTelegramNotice');
+
+      function collectData() {
+        return {
+          title: titleEl.value.trim(),
+          comment: commentEl.value.trim(),
+          template: templateEl.value,
+          open_chat: openChatEl.checked,
+          pin: pinEl.checked,
+          silent: silentEl.checked,
+        };
+      }
+
+      function updatePreview() {
+        const data = collectData();
+        const parts = [];
+        if (data.title) parts.push(data.title);
+        if (data.comment) parts.push(data.comment);
+        if (data.template) parts.push(data.template);
+        const text = parts.join('\n\n').trim();
+        if (!text) {
+          previewEl.textContent = 'Пост пока пустой';
+          previewEl.classList.add('empty');
+        } else {
+          previewEl.textContent = text;
+          previewEl.classList.remove('empty');
+        }
+      }
+
+      document.getElementById('previewBtn').addEventListener('click', updatePreview);
+      [titleEl, commentEl, templateEl, openChatEl, pinEl, silentEl].forEach((el) => {
+        el.addEventListener('input', updatePreview);
+        el.addEventListener('change', updatePreview);
+      });
+
+      const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      } else {
+        outsideTelegramNotice.style.display = 'block';
+      }
+
+      document.getElementById('sendBtn').addEventListener('click', function () {
+        const data = collectData();
+        const hasContent = data.title || data.comment || data.template;
+        if (!hasContent) {
+          alert('Заполни хотя бы одно поле');
+          return;
+        }
+
+        if (!tg) {
+          alert('Открой Mini App из Telegram, чтобы отправить данные в бота.');
+          return;
+        }
+
+        tg.sendData(JSON.stringify(data));
+      });
+
+      updatePreview();
+    })();
+  </script>
 </body>
 </html>
